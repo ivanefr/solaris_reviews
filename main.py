@@ -85,7 +85,29 @@ def callback_q2(call):
     else:
         data[message.chat.id]["q1"] = False
     bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
-                          text="Отзыв получен, чтобы отправить повторный напишите /start")
+                          text="Напишите общее впечатление о смене/интенсиве")
+    bot.register_next_step_handler(message, get_info)
+    # bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
+    #                       text="Отзыв получен, чтобы отправить повторный напишите /start")
 
+
+def get_info(message):
+    data[message.chat.id]["info"] = message.text
+    keyboard = types.InlineKeyboardMarkup()
+    buttons = []
+    for i in range(1, 6):
+        button = types.InlineKeyboardButton(text=str(i), callback_data=f"q3_{i}")
+        buttons.append(button)
+    keyboard.row(*buttons)
+    bot.send_message(chat_id=message.chat.id, text="Оцените в целом мероприятие от 1 до 5",
+                     reply_markup=keyboard)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("q3"))
+def callback_q3(call):
+    message = call.message
+    data[message.chat.id]["q3"] = int(call.data[-1])
+    bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
+                          text="Вам отзыв принят, чтобы оставить еще один нажмите /start")
 
 bot.polling(none_stop=True, interval=0)
