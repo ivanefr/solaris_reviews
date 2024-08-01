@@ -13,7 +13,14 @@ def start(message):
     keyboard = types.InlineKeyboardMarkup()
     key_start = types.InlineKeyboardButton(text="Начать", callback_data="start")
     keyboard.add(key_start)
-    bot.send_message(message.from_user.id, "Привет!\nлалалалал", reply_markup=keyboard)
+    text = """Здравствуйте! 🌟
+
+Благодарим вас за выбор программы от Соляриса! Нам важно ваше мнение, и мы хотели бы услышать ваш отзыв.
+
+Обратная связь поможет нам улучшить качество обучения и сделать курсы еще лучше. 
+
+Пожалуйста, уделите несколько минут, чтобы ответить на несколько вопросов и поделиться своими впечатлениями!"""
+    bot.send_message(message.from_user.id, text, reply_markup=keyboard)
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "start")
@@ -87,8 +94,6 @@ def callback_q2(call):
     bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
                           text="Напишите общее впечатление о смене/интенсиве")
     bot.register_next_step_handler(message, get_info)
-    # bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
-    #                       text="Отзыв получен, чтобы отправить повторный напишите /start")
 
 
 def get_info(message):
@@ -109,5 +114,7 @@ def callback_q3(call):
     data[message.chat.id]["q3"] = int(call.data[-1])
     bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
                           text="Вам отзыв принят, чтобы оставить еще один нажмите /start")
+
+
 
 bot.polling(none_stop=True, interval=0)
