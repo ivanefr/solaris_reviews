@@ -43,12 +43,6 @@ def get_class(message):
     bot.register_next_step_handler(message, get_age)
 
 
-def get_courses():
-    with open('courses.txt', encoding='utf8') as f:
-        courses = f.read().strip().split('\n')
-    return courses
-
-
 def get_age(message):
     data[message.chat.id]["age"] = message.text
     text = "Напишите название курса/интенсива/смены который вы прошли:"
@@ -109,7 +103,7 @@ def callback_q2(call):
     else:
         data[message.chat.id]["Устраивали ли вас условия проживания?"] = "Нет"
         bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
-                              text="Напишите конкретно что именно вам не понравилось")
+                              text="Напишите конкретно, что именно вам не понравилось")
         bot.register_next_step_handler(message, get_dop_info)
 
 
@@ -186,7 +180,7 @@ def callback_q3(call):
 
 Мы ценим ваше мнение и время, которое вы потратили на опрос. Обратная связь очень важна для улучшения нашей работы. 
 
-Желаем вам удачи в учебе и надеемся увидеть вас снова!"""
+Желаем вам удачи в учебе и надеемся увидеть вас снова!\nЧтобы оставить ещё один отзыв отправьте команду /start"""
     bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
                           text=text)
 
