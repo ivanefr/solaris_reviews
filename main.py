@@ -6,22 +6,26 @@ token = os.environ.get("SOLARIS_TOKEN")
 bot = telebot.TeleBot(token)
 
 data = {}
+is_start = {}
 
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    keyboard = types.InlineKeyboardMarkup()
-    key_start = types.InlineKeyboardButton(text="Начать", callback_data="start")
-    keyboard.add(key_start)
-    text = """Здравствуйте! 🌟
-
-Благодарим вас за выбор программы от Соляриса! Нам важно ваше мнение, и мы хотели бы услышать ваш отзыв.
-
-Обратная связь поможет нам улучшить качество обучения и сделать курсы еще лучше. 
-
-Пожалуйста, уделите несколько минут, чтобы ответить на несколько вопросов и поделиться своими впечатлениями!"""
-    bot.send_message(message.from_user.id, text, reply_markup=keyboard)
-
+    if is_start.get(message.chat.id):
+        bot.send_message(message.chat.id, "Вначале завершите Предыдщуий отзыв")
+    else:
+        is_start[message.chat.id] = True
+        keyboard = types.InlineKeyboardMarkup()
+        key_start = types.InlineKeyboardButton(text="Начать", callback_data="start")
+        keyboard.add(key_start)
+        text = """Здравствуйте! 🌟
+    
+    Благодарим вас за выбор программы от Соляриса! Нам важно ваше мнение, и мы хотели бы услышать ваш отзыв.
+    
+    Обратная связь поможет нам улучшить качество обучения и сделать курсы еще лучше. 
+    
+    Пожалуйста, уделите несколько минут, чтобы ответить на несколько вопросов и поделиться своими впечатлениями!"""
+        bot.send_message(message.from_user.id, text, reply_markup=keyboard)
 
 @bot.callback_query_handler(func=lambda call: call.data == "start")
 def callback_worker(call):
@@ -175,7 +179,7 @@ def get_info(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("q7"))
 def callback_q3(call):
     message = call.message
-    data[message.chat.id]["q3"] = int(call.data[-1])
+    data[message.chat.id]["q7"] = int(call.data[-1])
     text = """Спасибо за ваш отзыв! 💫
 
 Мы ценим ваше мнение и время, которое вы потратили на опрос. Обратная связь очень важна для улучшения нашей работы. 
@@ -183,6 +187,7 @@ def callback_q3(call):
 Желаем вам удачи в учебе и надеемся увидеть вас снова!\nЧтобы оставить ещё один отзыв отправьте команду /start"""
     bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
                           text=text)
+    is_start[message.chat.id] = False
 
 
 bot.polling(none_stop=True, interval=0)
