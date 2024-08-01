@@ -1,9 +1,14 @@
 import os
 import telebot
 from telebot import types
+from pymongo import MongoClient
 
 token = os.environ.get("SOLARIS_TOKEN")
 bot = telebot.TeleBot(token)
+
+client = MongoClient('mongodb://localhost:27017/')
+db = client['RatingSolaris']
+collection = db['Ratings']
 
 data = {}
 is_start = {}
@@ -11,6 +16,9 @@ is_start = {}
 
 @bot.message_handler(commands=['start'])
 def start(message):
+    if message.from_user.username == "pi31415926535qwerty":
+        bot.send_message(message.chat.id, "Здравствуйте, Юлия, пришлите команду  /get  для получения данных")
+        return
     if is_start.get(message.chat.id):
         bot.send_message(message.chat.id, "Вначале завершите Предыдщуий отзыв")
     else:
@@ -19,13 +27,26 @@ def start(message):
         key_start = types.InlineKeyboardButton(text="Начать", callback_data="start")
         keyboard.add(key_start)
         text = """Здравствуйте! 🌟
-    
-    Благодарим вас за выбор программы от Соляриса! Нам важно ваше мнение, и мы хотели бы услышать ваш отзыв.
-    
-    Обратная связь поможет нам улучшить качество обучения и сделать курсы еще лучше. 
-    
-    Пожалуйста, уделите несколько минут, чтобы ответить на несколько вопросов и поделиться своими впечатлениями!"""
+
+        Благодарим вас за выбор программы от Соляриса! Нам важно ваше мнение, и мы хотели бы услышать ваш отзыв.
+
+        Обратная связь поможет нам улучшить качество обучения и сделать курсы еще лучше. 
+
+        Пожалуйста, уделите несколько минут, чтобы ответить на несколько вопросов и поделиться своими впечатлениями!"""
         bot.send_message(message.from_user.id, text, reply_markup=keyboard)
+
+
+@bot.message_handler(commands=['get'])
+def get(message):
+    if message.from_user.username == "pi31415926535qwerty":
+        text = ""
+        bot.send_message(message.chat.id, "Принято, высылаем файл с данными...")
+        for i in list(collection.find()):
+            text += f"ФИО: {i['name']}\n"
+            text += f"Возраст: {i['age']}\n"
+            text += f"Класс: {i['class']}"
+            text += f"Курс: {i['direction']}"
+
 
 @bot.callback_query_handler(func=lambda call: call.data == "start")
 def callback_worker(call):
@@ -35,27 +56,46 @@ def callback_worker(call):
 
 
 def get_name(message):
-    data[message.chat.id] = {}
-    data[message.chat.id]["name"] = message.text
+    data[message.chat.id] = {
+        "user_id": message.chat.id,
+        "username": message.from_user.username,
+        "name": message.text,
+        "age": 0,
+        "direction": "",
+        "q1": "",
+        "q2": "",
+        "q3": "",
+        "q4": "",
+        "q5": "",
+        "class": "",
+        "detailed_feedback": "",
+        "rating": 0
+    }
     bot.send_message(chat_id=message.chat.id, text="В каком классе вы обучаетесь?")
     bot.register_next_step_handler(message, get_class)
 
 
 def get_class(message):
     data[message.chat.id]["class"] = message.text
-    bot.send_message(chat_id=message.chat.id, text="Введите ваш возраст.", )
+    bot.send_message(chat_id=message.chat.id, text="Введите ваш возраст.")
     bot.register_next_step_handler(message, get_age)
 
 
+def get_courses():
+    with open('courses.txt', encoding='utf8') as f:
+        courses = f.read().strip().split('\n')
+    return courses
+
+
 def get_age(message):
-    data[message.chat.id]["age"] = message.text
+    data[message.chat.id]["age"] = int(message.text)
     text = "Напишите название курса/интенсива/смены который вы прошли:"
     bot.send_message(chat_id=message.chat.id, text=text)
     bot.register_next_step_handler(message, get_course)
 
 
 def get_course(message):
-    data[message.chat.id]["course"] = message.text
+    data[message.chat.id]["direction"] = message.text
     keyboard = types.InlineKeyboardMarkup()
     yes = types.InlineKeyboardButton(text="Да", callback_data="q1_yes")
     keyboard.add(yes)
@@ -71,7 +111,7 @@ def get_course(message):
 def callback_q1(call):
     message = call.message
     if call.data == "q1_yes":
-        data[message.chat.id]["Проживали ли вы в общежитие во время проведения курса?"] = "Да"
+        data[message.chat.id]["q1"] = "Да"
         keyboard = types.InlineKeyboardMarkup()
         yes = types.InlineKeyboardButton(text="Да", callback_data="q2_yes")
         keyboard.add(yes)
@@ -80,7 +120,7 @@ def callback_q1(call):
         bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
                               text="Устраивали ли вас условия проживания?", reply_markup=keyboard)
     else:
-        data[message.chat.id]["Проживали ли вы в общежитие во время проведения курса?"] = "Нет"
+        data[message.chat.id]["q1"] = "нет"
         ask_q3(message)
 
 
@@ -102,17 +142,17 @@ def ask_q3(message, edit=True):
 def callback_q2(call):
     message = call.message
     if call.data == "q2_yes":
-        data[message.chat.id]["Устраивали ли вас условия проживания?"] = "Да"
+        data[message.chat.id]["q2"] = "да"
         ask_q3(message)
     else:
-        data[message.chat.id]["Устраивали ли вас условия проживания?"] = "Нет"
+        data[message.chat.id]["q2"] = "нет"
         bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
-                              text="Напишите конкретно, что именно вам не понравилось")
+                              text="Напишите конкретно что именно вам не понравилось")
         bot.register_next_step_handler(message, get_dop_info)
 
 
 def get_dop_info(message):
-    data[message.chat.id]["Напишите конкретно что именно вам не понравилось"] = message.text
+    data[message.chat.id]["q2_feedback"] = message.text
     ask_q3(message, edit=False)
 
 
@@ -120,9 +160,9 @@ def get_dop_info(message):
 def callback_q3(call):
     message = call.message
     if call.data == "q3_yes":
-        data[message.chat.id]["Были ли вам полезны лекции?"] = "Да"
+        data[message.chat.id]["q3"] = "да"
     else:
-        data[message.chat.id]["Были ли вам полезны лекции?"] = "Нет"
+        data[message.chat.id]["q3"] = "нет"
     keyboard = types.InlineKeyboardMarkup()
     yes = types.InlineKeyboardButton(text="Да", callback_data="q4_yes")
     keyboard.add(yes)
@@ -137,9 +177,9 @@ def callback_q3(call):
 def callback_q4(call):
     message = call.message
     if call.data == "q4_yes":
-        data[message.chat.id]["Стали бы вы рекомендовать наши курсы друзьям/знакомым?"] = "Да"
+        data[message.chat.id]["q4"] = "Да"
     else:
-        data[message.chat.id]["Стали бы вы рекомендовать наши курсы друзьям/знакомым?"] = "Нет"
+        data[message.chat.id]["q4"] = "Дет"
     keyboard = types.InlineKeyboardMarkup()
     yes = types.InlineKeyboardButton(text="Да", callback_data="q5_yes")
     keyboard.add(yes)
@@ -153,10 +193,10 @@ def callback_q4(call):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("q5"))
 def callback_q5(call):
     message = call.message
-    if call.data == "q4_yes":
-        data[message.chat.id]["Посетили бы вы другие курсы/смены/интенсивы в Солярисе еще раз?"] = "Да"
+    if call.data == "q5_yes":
+        data[message.chat.id]["q5"] = "Да"
     else:
-        data[message.chat.id]["Посетили бы вы другие курсы/смены/интенсивы в Солярисе еще раз?"] = "Нет"
+        data[message.chat.id]["q5"] = "Нет"
     text = """Развернутый отзыв. 🌠
 
 Напишите про ваши впечатления от курса/смены/интенсива. Расскажите, что вам понравилось, а что бы вы улучшили или изменили."""
@@ -165,7 +205,7 @@ def callback_q5(call):
 
 
 def get_info(message):
-    data[message.chat.id]["Развёрнутый отзыв"] = message.text
+    data[message.chat.id]["detailed_feedback"] = message.text
     keyboard = types.InlineKeyboardMarkup()
     buttons = []
     for i in range(1, 6):
@@ -177,9 +217,14 @@ def get_info(message):
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("q7"))
-def callback_q3(call):
+def callback_q7(call):
     message = call.message
-    data[message.chat.id]["q7"] = int(call.data[-1])
+    data[message.chat.id]["rating"] = int(call.data[-1])
+
+    user_data = data[message.chat.id]
+    collection.insert_one(user_data)
+    is_start[message.chat.id] = False
+
     text = """Спасибо за ваш отзыв! 💫
 
 Мы ценим ваше мнение и время, которое вы потратили на опрос. Обратная связь очень важна для улучшения нашей работы. 
@@ -187,7 +232,6 @@ def callback_q3(call):
 Желаем вам удачи в учебе и надеемся увидеть вас снова!\nЧтобы оставить ещё один отзыв отправьте команду /start"""
     bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
                           text=text)
-    is_start[message.chat.id] = False
 
 
 bot.polling(none_stop=True, interval=0)
