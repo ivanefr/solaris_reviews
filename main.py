@@ -15,11 +15,18 @@ collection = db['Ratings']
 data = {}
 is_start = {}
 
+debug = True
+
+YULIA = "razumova1983"
+if debug:
+    YULIA = "pi31415926535qwerty"
+
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    if message.from_user.username == "pi31415926535qwerty":
-        bot.send_message(message.chat.id, "Здравствуйте, Юлия, пришлите команду  /get  для получения данных")
+    if message.from_user.username == YULIA:
+        bot.send_message(message.chat.id,
+                         "Здравствуйте, Юлия!\nПожалуйста, пришлите команду /get для получения данных.")
         return
     if is_start.get(message.chat.id):
         bot.send_message(message.chat.id, "Вначале завершите Предыдщуий отзыв")
@@ -40,7 +47,7 @@ def start(message):
 
 @bot.message_handler(commands=['get'])
 def get(message):
-    if message.from_user.username == "pi31415926535qwerty":
+    if message.from_user.username == YULIA:
         dictionary = list(collection.find())
         if not dictionary:
             bot.send_message(message.chat.id, "Ещё нет ни одного отзыва!")
@@ -133,7 +140,7 @@ def get_courses():
 
 
 def get_age(message):
-    data[message.chat.id]["age"] = int(message.text)
+    data[message.chat.id]["age"] = message.text
     text = "Напишите название курса/интенсива/смены который вы прошли:"
     bot.send_message(chat_id=message.chat.id, text=text)
     bot.register_next_step_handler(message, get_course)
