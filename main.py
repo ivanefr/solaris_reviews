@@ -2,6 +2,8 @@ import os
 import telebot
 from telebot import types
 from pymongo import MongoClient
+from docx import Document
+from docx.shared import Inches
 
 token = os.environ.get("SOLARIS_TOKEN")
 bot = telebot.TeleBot(token)
@@ -28,24 +30,67 @@ def start(message):
         keyboard.add(key_start)
         text = """Здравствуйте! 🌟
 
-        Благодарим вас за выбор программы от Соляриса! Нам важно ваше мнение, и мы хотели бы услышать ваш отзыв.
+Благодарим вас за выбор программы от Соляриса! Нам важно ваше мнение, и мы хотели бы услышать ваш отзыв.
 
-        Обратная связь поможет нам улучшить качество обучения и сделать курсы еще лучше. 
+Обратная связь поможет нам улучшить качество обучения и сделать курсы еще лучше. 
 
-        Пожалуйста, уделите несколько минут, чтобы ответить на несколько вопросов и поделиться своими впечатлениями!"""
+Пожалуйста, уделите несколько минут, чтобы ответить на несколько вопросов и поделиться своими впечатлениями!"""
         bot.send_message(message.from_user.id, text, reply_markup=keyboard)
 
 
 @bot.message_handler(commands=['get'])
 def get(message):
     if message.from_user.username == "pi31415926535qwerty":
-        text = ""
+        dictionary = list(collection.find())
+        if not dictionary:
+            bot.send_message(message.chat.id, "Ещё нет ни одного отзыва!")
+            return
         bot.send_message(message.chat.id, "Принято, высылаем файл с данными...")
+        document = Document()
+        document.add_heading("Отзывы Солярис", level=0)
         for i in list(collection.find()):
-            text += f"ФИО: {i['name']}\n"
-            text += f"Возраст: {i['age']}\n"
-            text += f"Класс: {i['class']}"
-            text += f"Курс: {i['direction']}"
+            p = document.add_paragraph("\nФИО: ")
+            p.add_run(i['name']).bold = True
+
+            p.add_run("\nВозраст: ")
+            p.add_run(str(i['age'])).bold = True
+
+            p.add_run("\nКласс: ")
+            p.add_run(str(i['class'])).bold = True
+
+            p.add_run("\nКурс: ")
+            p.add_run(str(i['direction'])).bold = True
+
+            p.add_run("\nПроживали ли в общежитии?: ")
+            p.add_run(str(i['q1'])).bold = True
+
+            p.add_run("\nУстроили ли условия проживания?: ")
+            p.add_run(str(i['q2'])).bold = True
+
+            if "q2_feedback" in i:
+                p.add_run("\nЧто не устроило: ")
+                p.add_run(str(i['q2_feedback'])).bold = True
+
+            p.add_run("\nБыли ли полезны лекции?: ")
+            p.add_run(str(i['q3'])).bold = True
+
+            p.add_run("\nСтали бы вы рекомендовать наши курсы друзьям/знакомым?: ")
+            p.add_run(str(i['q4'])).bold = True
+
+            p.add_run("\nПосетили бы вы другие курсы/смены/интенсивы в Солярисе еще раз?: ")
+            p.add_run(str(i['q4'])).bold = True
+
+            p.add_run("\nРазвёрнутый отзыв: ")
+            p.add_run(str(i['detailed_feedback'])).bold = True
+
+            p.add_run("\nОбщая оценка: ")
+            p.add_run(str(i['rating'])).bold = True
+
+            document.add_paragraph("\n" + "_" * 100)
+            collection.delete_one({"name": i['name']})
+        document.save("reviews.docx")
+        bot.send_document(message.chat.id, open("reviews.docx", "rb"))
+        os.remove("reviews.docx")
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "start")
@@ -120,7 +165,7 @@ def callback_q1(call):
         bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
                               text="Устраивали ли вас условия проживания?", reply_markup=keyboard)
     else:
-        data[message.chat.id]["q1"] = "нет"
+        data[message.chat.id]["q1"] = "Нет"
         ask_q3(message)
 
 
@@ -142,10 +187,10 @@ def ask_q3(message, edit=True):
 def callback_q2(call):
     message = call.message
     if call.data == "q2_yes":
-        data[message.chat.id]["q2"] = "да"
+        data[message.chat.id]["q2"] = "Да"
         ask_q3(message)
     else:
-        data[message.chat.id]["q2"] = "нет"
+        data[message.chat.id]["q2"] = "Нет"
         bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id,
                               text="Напишите конкретно что именно вам не понравилось")
         bot.register_next_step_handler(message, get_dop_info)
@@ -160,9 +205,9 @@ def get_dop_info(message):
 def callback_q3(call):
     message = call.message
     if call.data == "q3_yes":
-        data[message.chat.id]["q3"] = "да"
+        data[message.chat.id]["q3"] = "Да"
     else:
-        data[message.chat.id]["q3"] = "нет"
+        data[message.chat.id]["q3"] = "Нет"
     keyboard = types.InlineKeyboardMarkup()
     yes = types.InlineKeyboardButton(text="Да", callback_data="q4_yes")
     keyboard.add(yes)
@@ -179,7 +224,7 @@ def callback_q4(call):
     if call.data == "q4_yes":
         data[message.chat.id]["q4"] = "Да"
     else:
-        data[message.chat.id]["q4"] = "Дет"
+        data[message.chat.id]["q4"] = "Нет"
     keyboard = types.InlineKeyboardMarkup()
     yes = types.InlineKeyboardButton(text="Да", callback_data="q5_yes")
     keyboard.add(yes)
